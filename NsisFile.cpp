@@ -321,6 +321,53 @@ void	CNsisFile::DumpFiles(char * path)
 
 }
 
+// Next 12 bytes after first header
+// 30 02 00 80 5D 00 00 80 00 00 40 00 - Best (LZMA, 8 compression dict size)
+// 85 02 00 80 31 00 03 1B FF FF FE F4 - BZIP2
+// failed - BZIP2 (solid)
+// 49 02 00 80 ED 56 3D 88 13 41 14 7E - Default (ZLIB/Deflate)
+// 31 02 00 80 5D 00 00 80 00 00 40 00 - LZMA
+// 5D 00 00 80 00 00 77 81 FC 17 BC 00 - LZMA (solid)
+// 4B 02 00 80 ED 56 3D 88 13 51 10 9E - ZLIB
+// failed - ZLIB (solid)
+
+// LZMA
+// 33 02 00 80 5D 00 00 10 00 00 40 00 - 1
+// 33 02 00 80 5D 00 00 20 00 00 40 00 - 2
+// 33 02 00 80 5D 00 00 30 00 00 40 00 - 3
+// 33 02 00 80 5D 00 00 40 00 00 40 00 - 4
+// 33 02 00 80 5D 00 00 50 00 00 40 00 - 5
+// 33 02 00 80 5D 00 00 60 00 00 40 00 - 6
+// 33 02 00 80 5D 00 00 70 00 00 40 00 - 7
+// 33 02 00 80 5D 00 00 90 00 00 40 00 - 9
+
+// ZLIB = 26 14 00 80 ED 5C 69 74 1C D5 95 7E
+// ZLIB = 2B 14 00 80 ED 5C 7B 74 14 55 9A BF 
+// LZMA = 3D 11 00 80 5D 00 00 80 00 00 50 00
+
+// 3D 11 00 80 5D 00 00 80 00 00 50 00
+
+static bool IsLZMA(byte *p)
+{
+	if (p[0] != 0x5D || p[1] != 0x00 || p[2] != 0x00)
+		return false;
+
+	// Compression dict size (0-9)
+	if ((p[3] & 0x0F) != 0)
+		return false;
+
+	return true;
+}
+
+static bool IsBZIP2(byte *p)
+{
+	return (p[0] == 0x31 && p[1] < 14);
+}
+
+static bool IsZLIB(byte *p)
+{
+	return (p[0] == 0xED && p[1] == 0x5C);
+}
 
 /************************************************************************/
 //	processing header
@@ -338,9 +385,59 @@ bool	CNsisFile::ProcessingHeader()
 		if (0 != (hsize&0x80000000))
 		{
 			//	remove compress flag
-			hsize &= 0x7FFFFFFF;
+			//hsize &= 0x7FFFFFFF;
 			byte * p= &_dump[_offset];
-			
+
+			// check compressor type
+			enum {UNKNOWN,ZLIB,BZIP2,LZMA} compressor;
+			bool solid = true;
+
+			if (IsLZMA(p))
+				compressor = LZMA;
+			else if (p[3] == 0x80) {
+				solid = false;
+				if (IsLZMA(p + 4))
+					compressor = LZMA;
+				else if (IsBZIP2(p + 4))
+					compressor = BZIP2;
+				else if (IsZLIB(p + 4))
+					compressor = ZLIB;
+				else
+					compressor = UNKNOWN;
+			} else if (IsBZIP2(p))
+				compressor = BZIP2;
+			else if (IsZLIB(p))
+				compressor = ZLIB;
+			else
+				compressor = UNKNOWN;
+
+#ifdef _DEBUG
+			OutputDebugString("Compressor: ");
+			if (compressor == UNKNOWN)
+				OutputDebugString("UNKNOWN");
+			else if (compressor == ZLIB)
+				OutputDebugString("ZLIB");
+			else if (compressor == BZIP2)
+				OutputDebugString("BZIP2");
+			else if (compressor == LZMA)
+				OutputDebugString("LZMA");
+
+			if (solid)
+				OutputDebugString(" (solid)\n");
+			else
+				OutputDebugString(" (non-solid)\n");
+#endif
+
+			if (compressor != LZMA)
+				// Only LZMA support
+				return false;
+
+			if (!solid) {
+				_offset += 4;
+				p += 4;
+				hsize &= 0x7FFFFFFF;
+			}
+
 			//	 decompress all data to 
 			_compressor.DecompressAndCopyToBuffer(p,_dump.size()-_offset,&_global_dump);
 			
@@ -350,16 +447,12 @@ bool	CNsisFile::ProcessingHeader()
 			file.Write(&_global_dump[0],_global_dump.size());
 			file.Close();
             */
-			
-			// 4 bytes - length of header;
-			DWORD s = *(DWORD*)&_global_dump[0];
-			if (s == _firstheader.length_of_header)
-			{
-				_header_dump.resize(s);
-				memcpy(&_header_dump[0],&_global_dump[4],s);
-			}
+
+			_header_dump = _global_dump;
+
 			//	copy the header
 			memcpy(&_globalheader,&_header_dump[0],sizeof(header));
+			/*DWORD s = _firstheader.length_of_header;
 			unsigned  off = s + 4;
 			unsigned beginoff = s+4;
 			while (off < _global_dump.size())
@@ -372,18 +465,31 @@ bool	CNsisFile::ProcessingHeader()
 				sf.pointer = &_global_dump[off];
 				_nsis_files.push_back(sf);
 				off+= size;
-			}
+			}*/
 
-			if (false == LoadPages()) 
+			if (false == LoadPages())
+			{
+				OutputDebugString("LoadPages() failed.\n");
 				return false;
+			}
 			if (false == LoadSection())
+			{
+				OutputDebugString("LoadSection() failed.\n");
 				return false;
+			}
 			if (false == LoadEntries())
+			{
+				OutputDebugString("LoadEntries() failed.\n");
 				return false;
+			}
 			if (false == LoadStrings())
+			{
+				OutputDebugString("LoadStrings() failed.\n");
 				return false;
+			}
 			if (false == LoadLandTables())
 			{
+				OutputDebugString("LoadLandTables() failed.\n");
 			}
 
 			ProcessingEntries();
@@ -414,10 +520,10 @@ bool	CNsisFile::ProcessingHeader()
 			*/
 		}
 	}
-	std::string str1 = GetNsisString(_globalheader.install_directory_ptr,true);
-	_global_vars.SetVarValue(21,str1);
-	_global_vars.SetVarValue(25,"d:\\temp\\");
-	std::string str2 = GetNsisString(_globalheader.install_directory_auto_append,true);
+	//std::string str1 = GetNsisString(_globalheader.install_directory_ptr,true);
+	//_global_vars.SetVarValue(21,str1);
+	//_global_vars.SetVarValue(25,"d:\\temp\\");
+	//std::string str2 = GetNsisString(_globalheader.install_directory_auto_append,true);
 	return false;
 }
 
@@ -504,10 +610,10 @@ void CNsisFile::ProcessingFunctions()
 
 
 
-	CFile file;
-	file.Open("D:\\ConduitInstaller\\spinstaller_s_exe\\code.txt",CFile::modeWrite|CFile::modeCreate,NULL);
-	file.Write(allcode.c_str(),allcode.size());
-	file.Close();
+	//CFile file;
+	//file.Open("D:\\ConduitInstaller\\spinstaller_s_exe\\code.txt",CFile::modeWrite|CFile::modeCreate,NULL);
+	//file.Write(allcode.c_str(),allcode.size());
+	//file.Close();
 }
 
 /************************************************************************/
@@ -551,9 +657,9 @@ bool CNsisFile::LoadSection()
 bool CNsisFile::LoadStrings()
 {
 	int offset	= _globalheader.blocks[NB_STRINGS].offset;
-	int count	= (_globalheader.blocks[NB_LANGTABLES].offset  - _globalheader.blocks[NB_STRINGS].offset)/2;
+	int count	= _globalheader.blocks[NB_LANGTABLES].offset  - _globalheader.blocks[NB_STRINGS].offset;
 	//	
-	WCHAR * wc = (WCHAR *)&_header_dump[offset];
+	TCHAR * wc = (TCHAR *)&_header_dump[offset];
 	_nsis_string_table.insert(_nsis_string_table.begin(),wc,wc+count);
 
 	return true;
@@ -634,10 +740,13 @@ void CNsisFile::myRegGetStr(HKEY root, const TCHAR *sub, const TCHAR *name, TCHA
 /************************************************************************/
 /*                                                                      */
 /************************************************************************/
+#if _MSC_VER >= 1900
+#pragma warning(disable:4996) // disable GetVersion() deprecated error for VS 2015 and newer
+#endif
 std::string CNsisFile::GetNsisString(int offset,bool isvalue)
 {
 	std::wstring wstr;
-
+	if (_nsis_string_table.size() == 0) return "";
 	// the real offset in the string table
 	int real_offset = 0x00;
 	//	 lang table
@@ -656,7 +765,7 @@ std::string CNsisFile::GetNsisString(int offset,bool isvalue)
 	}
 	// try to decode string in 
 
-	WCHAR * in = &_nsis_string_table[real_offset];
+	TCHAR * in = &_nsis_string_table[real_offset];
 
 
 	while (true)

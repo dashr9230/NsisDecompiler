@@ -124,7 +124,7 @@ public:
 	std::vector<std::string> _nsis_script_code;
 
 	//	byte array to the stings
-	std::vector<WCHAR>	_nsis_string_table;
+	std::vector<TCHAR>	_nsis_string_table;
     std::vector<int>  _nsis_launguage_table;
 
 	//	vector to nsis files (inclide uninstaller, plugins and installation files)

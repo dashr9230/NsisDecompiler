@@ -113,10 +113,25 @@ void CNsisDecompilerDlg::OnBnClickedButton1()
 	//_nsisFile.LoadDump("D:\\ConduitInstaller\\spinstaller_s_exe\\spinstaller_s.EOF");
 	//_nsisFile.LoadDump("D:\\ConduitInstaller\\spinstaller_s_exe\\1.zip");
 	//_nsisFile.LoadExeDump("D:\\ConduitInstaller\\spinstaller_s_exe\\spinstaller.exe");
-	_nsisFile.LoadExeDump("D:\\ConduitInstaller\\spinstaller_s_exe\\spnocrc.exe");
+	//_nsisFile.LoadExeDump("D:\\ConduitInstaller\\spinstaller_s_exe\\spnocrc.exe");
 	//_nsisFile.LoadExeDump("D:\\ConduitInstaller\\spinstaller_s_exe\\FPSetup.exe");
     //_nsisFile.LoadExeDump("D:\\NSIS_uni\\test.exe");
-	
+
+	//_nsisFile.LoadExeDump("D:\\Downloads\\Modding\\GTA\\SA-MP\\sa-mp-0.2X-u1-install.exe");
+	//_nsisFile.LoadExeDump("D:\\Downloads\\Modding\\GTA\\SA-MP\\sa-mp-0.2X-u1_2-install.exe");
+	_nsisFile.LoadExeDump("D:\\Downloads\\Modding\\GTA\\SA-MP\\sa-mp-0.3.7-R5-1-install.exe");
+
+#define DIRECTORY "D:\\VirtualBox VMs\\Shared\\sampcvs037R4\\sampcvs\\main\\New folder\\"
+	//_nsisFile.LoadExeDump(DIRECTORY "best.exe");
+	//_nsisFile.LoadExeDump(DIRECTORY "bzip2.exe");
+	//_nsisFile.LoadExeDump(DIRECTORY "bzip2-solid.exe");
+	//_nsisFile.LoadExeDump(DIRECTORY "default.exe");
+	//_nsisFile.LoadExeDump(DIRECTORY "lzma.exe");
+	//_nsisFile.LoadExeDump(DIRECTORY "lzma-solid.exe");
+	//_nsisFile.LoadExeDump(DIRECTORY "zlib.exe");
+	//_nsisFile.LoadExeDump(DIRECTORY "zlib-solid.exe");
+	//_nsisFile.LoadExeDump(DIRECTORY "lzma-9.exe");
+
 	_nsisFile.ProcessingHeader();
 	//_nsisFile.DumpFiles("d:\\ConduitInstaller\\_dump");
 //	_nsisFile.SaveExeDump("D:\\ConduitInstaller\\spinstaller_s_exe\\spnocrc_t.exe");

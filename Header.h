@@ -1,5 +1,5 @@
 #pragma once
-#define NSIS_MAX_STRLEN 8*1024
+#define NSIS_MAX_STRLEN 1024
 #define NSIS_MAX_INST_TYPES 32
 #define NSIS_DEFAULT_LANG 1033
 
@@ -125,7 +125,7 @@ typedef struct
 	int code;       // The "address" of the start of the code in count of struct entries.
 	int code_size;  // The size of the code in num of entries?
 	int size_kb;
-	TCHAR name[NSIS_MAX_STRLEN*2]; // '' for invisible sections
+	TCHAR name[NSIS_MAX_STRLEN]; // '' for invisible sections
 	//	так как у нас уникод, то два символа на символ
 } section;
 
